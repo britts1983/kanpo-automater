@@ -1,24 +1,17 @@
-# Kanpo daily naturalization notice monitor
+# Kanpo daily email monitor
 
-This project monitors **public navigation/index metadata** on https://www.kanpo.go.jp/ for headings mentioning `帰化` or `国籍法`. It intentionally does **not** extract, OCR, collect, or retain individuals' personal details from protected notices.
+Runs on GitHub Actions at **09:00 JST** (scheduled GitHub jobs can be delayed). It checks accessible Kanpo indexes for naturalization notices, stores source links in `data/notices.csv`, and emails `brittobaby23@gmail.com` every day with YES, NO, or CHECK FAILED.
 
-## Set up
-1. Create a **private** GitHub repository and upload this folder's contents, including `.github/workflows/daily.yml`.
-2. Open GitHub → Actions → Daily Kanpo naturalization notice monitor → Run workflow for an immediate first run.
-3. The scheduled workflow runs at 00:00 UTC (09:00 JST) every day. GitHub scheduled workflows may be delayed or occasionally skipped.
-4. Open `data/notices.csv` to see any detected index links. Workflow runs also provide a CSV artifact.
-5. If GitHub rejects the push, in repository Settings → Actions → General → Workflow permissions, allow read/write, or use a separate pull-request workflow.
+**Important:** The monitor does **not** extract individual names. `NO` means no notice was detected by the index scraper, not proof that no notice exists. It may miss announcements if the official site changes its HTML structure. The script inspects the latest issue; the email reports only notices whose publication date is *today*. On non-publication days, the result is usually NO.
 
-## Limitations
-- This is a **best-effort metadata monitor**, not an official Kanpo API. The current website's HTML structure is not guaranteed.
-- Some notice headings may be present only in PDFs, and the official site deliberately protects certain personal-information notices from extraction. A zero-row day **does not mean** no naturalizations occurred.
-- The homepage may show previous dates, and some index links may be missing or inaccessible.
-- The script is designed to start with the latest issue at first execution, not to backfill earlier days.
-- Respect website access conditions, publication limits, and privacy protections.
-- It stores only notice metadata, not people's names, addresses, or birthdates.
+## Installation
 
-## Local execution
-```bash
-python -m pip install -r requirements.txt
-python monitor.py
-```
+1. Copy `monitor.py`, `email_report.py`, `failure_email.py`, `requirements.txt`, and `.github/workflows/daily.yml` into your existing GitHub repo, preserving the `.github/workflows` path.
+2. In the Google account that will send the emails, enable 2-Step Verification and create a **Google App Password** (if available to your account). Never put this password into code or chat.
+3. GitHub repo → **Settings → Secrets and variables → Actions → New repository secret**:
+   - `GMAIL_ADDRESS` = the Gmail address that will send the mail (can be the recipient address).
+   - `GMAIL_APP_PASSWORD` = the 16-character Google App Password.
+4. Commit and push files to `main`.
+5. GitHub → **Actions → Daily Kanpo naturalization email → Run workflow**. Verify the email arrives, and check spam if needed.
+
+The workflow uses `00:00 UTC` for `09:00 JST` and attempts to run every day. GitHub may delay or skip scheduled runs. The default branch must contain the workflow and Actions must be enabled. If a Gmail App Password is unavailable, use another SMTP provider or a transactional email service instead.

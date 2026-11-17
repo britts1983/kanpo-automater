@@ -1,7 +1,7 @@
-name: Daily Kanpo naturalization notice monitor
+name: Daily Kanpo naturalization email
 on:
   schedule:
-    # GitHub Actions uses UTC; 00:00 UTC = 09:00 JST
+    # UTC 00:00 = JST 09:00; GitHub schedules may be delayed.
     - cron: '0 0 * * *'
   workflow_dispatch:
 permissions:
@@ -9,15 +9,19 @@ permissions:
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - run: pip install -r requirements.txt
-      - run: python monitor.py
-      - name: Commit updated metadata CSV
+      - name: Check official Kanpo indexes
+        id: check
+        continue-on-error: true
+        run: python monitor.py
+      - name: Commit notice history
+        if: steps.check.outcome == 'success'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -26,7 +30,21 @@ jobs:
             git commit -m 'Update Kanpo notice metadata'
             git push
           fi
+      - name: Send daily email
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          EMAIL_TO: brittobaby23@gmail.com
+          CHECK_OUTCOME: ${{ steps.check.outcome }}
+        run: |
+          if [ "$CHECK_OUTCOME" = "success" ]; then
+            python email_report.py
+          else
+            python failure_email.py
+          fi
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: kanpo-notice-metadata
           path: data/notices.csv
+          if-no-files-found: ignore
